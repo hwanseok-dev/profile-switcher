@@ -1,0 +1,90 @@
+#!/bin/zsh
+
+# Function to switch between Work and Personal profiles
+# - Updates ~/.ssh/config
+# - Updates Global Git Config (user.name, user.email)
+# - Reloads SSH keys into the agent
+
+function git-login() {
+  local TARGET=$1
+  local CONFIG_FILE="$HOME/.ssh/config"
+
+  # ==========================================
+  # CONFIGURATION: EDIT THIS SECTION
+  # ==========================================
+
+  # Paths to your SSH private keys
+  local KEY_WORK="$HOME/.ssh/id_rsa_work"
+  local KEY_PERSONAL="$HOME/.ssh/id_rsa_personal"
+
+  # Git Profile - WORK
+  local NAME_WORK="WorkUser"
+  local EMAIL_WORK="work@example.com"
+
+  # Git Profile - PERSONAL
+  local NAME_PERSONAL="PersonalUser"
+  local EMAIL_PERSONAL="personal@example.com"
+
+  # ==========================================
+  # END CONFIGURATION
+  # ==========================================
+
+  # 1. Clear existing keys from SSH agent to prevent caching issues
+  ssh-add -D > /dev/null 2>&1
+
+  if [ "$TARGET" = "work" ]; then
+    echo "Switching to WORK context..."
+    
+    # 2. Overwrite SSH config
+    cat > "$CONFIG_FILE" <<EOF
+Host github.com
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile $KEY_WORK
+EOF
+    
+    # 3. Add new key to agent
+    ssh-add --apple-use-keychain "$KEY_WORK"
+    
+    # 4. Update global git config
+    git config --global user.name "$NAME_WORK"
+    git config --global user.email "$EMAIL_WORK"
+    
+    echo "Done. Switched to Work identity."
+
+  elif [ "$TARGET" = "personal" ]; then
+    echo "Switching to PERSONAL context..."
+    
+    # 2. Overwrite SSH config
+    cat > "$CONFIG_FILE" <<EOF
+Host github.com
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile $KEY_PERSONAL
+EOF
+
+    # 3. Add new key to agent
+    ssh-add --apple-use-keychain "$KEY_PERSONAL"
+    
+    # 4. Update global git config
+    git config --global user.name "$NAME_PERSONAL"
+    git config --global user.email "$EMAIL_PERSONAL"
+    
+    echo "Done. Switched to Personal identity."
+
+  else
+    echo "Usage: login personal OR login work"
+    return 1
+  fi
+
+  # 5. Verify GitHub connection
+  echo "Verifying GitHub connection..."
+  ssh -T git@github.com
+  
+  # 6. Verify Git global config
+  echo "Current Global Git Config:"
+  git config --global --list | grep user
+}
+
+# Alias for easy access
+alias login='git-login'
